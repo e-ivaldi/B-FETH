@@ -71,7 +71,7 @@ module Item =
             | :? (uint32 list) as l -> l |> List.map IntNormalizer.toByteArray |> Array.concat |> Seq.toList |> List.map ofObject |> NList
             | :? (uint64 list) as l -> l |> List.map IntNormalizer.toByteArray |> Array.concat |> Seq.toList |> List.map ofObject |> NList
             | :? (byte list) as l -> l |> List.toArray |> stringEncoder.GetString |> Single
-            | :? System.Collections.Generic.List<_> as gl -> gl |> Seq.cast<_> |> Seq.toList |> List.map ofObject |> Seq.toList |> GList  
+            | :? GenericList as gl -> gl |> Seq.cast<_> |> Seq.toList |> List.map ofObject |> Seq.toList |> GList  
             | :? IEnumerable as en -> en |> Seq.cast<_> |> Seq.toList |> List.map ofObject |> Seq.toList |> List            
             | x -> if o = null then Single ""
                    else if Microsoft.FSharp.Reflection.FSharpType.IsTuple(x.GetType()) 
