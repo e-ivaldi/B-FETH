@@ -126,10 +126,10 @@ let stringListList () =
 [<Test>]
 let genericList () =  
 
-//    Assert.AreEqual(
-//        fromHex "C7C0C1C0C3C0C1C0",
-//        Bfeth.RLP.encode [ []; [[]]; [ []; [[]] ] ]
-//    )
+    Assert.AreEqual(
+        fromHex "C7C0C1C0C3C0C1C0",
+        Bfeth.RLP.encode [ []; [[]]; [ []; [[]] ] ]
+    )
 
     let list = GenericList()
     list.Add 1ul
@@ -137,12 +137,8 @@ let genericList () =
     list.Add [[4ul;5ul;5ul]]
     list.Add "abc"
 
-    Assert.AreEqual(          //--
+    Assert.AreEqual(          
         fromHex "CE0183FFFFFFC4C304050583616263",
-               //CA0183FFFFFFC3C304050583616263
-               //CE0183FFFFFFC4C204050583616263
-               //CF0183FFFFFFC4C304050583616263
-               //CB0183FFFFFFC4C304050583616263
         Bfeth.RLP.encode list
     )
 

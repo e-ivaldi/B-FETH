@@ -20,15 +20,19 @@ module Item =
         | GList of Item list //generic list
 
     // Converts an Item into a byte list [this function is ludicrous - and the name is completely unreasonable]
-    let rec toBytes = function
-        | Single s -> stringEncoder.GetBytes s |> List.ofArray
-        // TODO: temp fix: cheating here adding one more byte every time we find a non numeric list in our item and removing one byte
-        // when counting the size of the generic bytes
-        | GList l -> l |> List.map (fun x-> 0x01uy::toBytes x) |> List.concat |> List.tail
-        // TODO: temp fix: cheating here adding one more byte every time we find a non numeric list in our item
-        | List l -> l |> List.map (fun x-> 0x01uy::toBytes x) |> List.concat
-        | NList l -> l |> List.map (fun x-> toBytes x) |> List.concat
+    let toBytes = function
+        |  Single s -> stringEncoder.GetBytes s |> List.ofArray
+        | _ -> failwith "Not supported"
 
+    let countBytes item = 
+        let rec loop = function
+            | Single s -> toBytes (Single s)
+            | NList l -> l |> List.map (fun x-> loop x) |> List.concat 
+            // add 1 more byte for every internal list
+            | List l -> l |> List.map (fun x-> 0x01uy::loop x) |> List.concat 
+            // add 1 more byte for every internal list and remove 1 at the end of the computation
+            | GList l -> l |> List.map (fun x-> 0x01uy::loop x) |> List.concat |> List.tail
+            in List.length (loop item)
 
     let removeLeadingZeroes (list:byte array) = 
         let list = List.ofArray list in
@@ -60,7 +64,7 @@ module Item =
         match o with 
             | :? bool as b -> if b then "\x01" |> Single else Single ""
             | :? Item as i -> i
-            | :? string as s -> s |> stringEncoder.GetBytes |> stringEncoder.GetString  |> Single
+            | :? string as s -> s |> Single
             | :? byte as b -> [|b|] |> stringEncoder.GetString |> Single
             | :? bigint as i -> i |> IntNormalizer.toByteArray |> stringEncoder.GetString |> Single
             | :? uint32 as i -> i |> IntNormalizer.toByteArray |> stringEncoder.GetString |> Single
@@ -97,25 +101,20 @@ module RLP =
 
 
     let rec encodez (o:obj) = 
-        let item = ofObject o in      
+        let item = ofObject o in  
+        let length = countBytes item in  
+        let lenghtInByte = byte length in  
+        let lenghtInByteArray = IntNormalizer.toByteArray length |> Array.toList in
+        let lenghtOfLenghtBinaryFormInByte = getNumberOfBytesComposingStringBinaryRepresentation length in
         match item with 
             | Single _ -> 
-                let b = toBytes item in 
-                let length = (List.length b) in
-                let lenghtInByte = byte length in
-                let lenghtInByteArray = IntNormalizer.toByteArray length |> Array.toList in
-                let lenghtOfLenghtBinaryFormInByte = getNumberOfBytesComposingStringBinaryRepresentation length in
+                let itemBytes = toBytes item in             
                 match length with
                     | 0 -> [0x80uy]
-                    | 1 when List.head b <= 0x7Fuy -> [List.head b] 
-                    | n when n < 56 -> (0x80uy + lenghtInByte) :: b
-                    | x -> (0xB7uy + lenghtOfLenghtBinaryFormInByte) :: (lenghtInByteArray @ b)
-            | GList i | NList i | List i -> 
-                let b = toBytes item in 
-                let length = (List.length b) in
-                let lenghtInByte = byte length in
-                let lenghtInByteArray = IntNormalizer.toByteArray length |> Array.toList in
-                let lenghtOfLenghtBinaryFormInByte = getNumberOfBytesComposingStringBinaryRepresentation length in 
+                    | 1 when List.head itemBytes <= 0x7Fuy -> [List.head itemBytes] 
+                    | n when n < 56 -> (0x80uy + lenghtInByte) :: itemBytes
+                    | x -> (0xB7uy + lenghtOfLenghtBinaryFormInByte) :: (lenghtInByteArray @ itemBytes)
+            | GList i | NList i | List i ->    
                 match i with
                     | [] -> [0xC0uy]
                     | [x] -> [ 0xC0uy + lenghtInByte ] @ encodez x
@@ -124,7 +123,5 @@ module RLP =
                         match length with
                             | n when n < 56  -> [ 0xC0uy + lenghtInByte ] @ serializedList
                             | _ -> (0xF7uy + lenghtOfLenghtBinaryFormInByte) :: (lenghtInByteArray @ serializedList)
-
-
 
     let rec encode (o:obj) = let encoded = encodez o in let s = List.fold (fun acc x-> acc + sprintf "%02X" x) "" encoded in printfn "%s" s; encoded
