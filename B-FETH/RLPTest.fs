@@ -100,9 +100,6 @@ let string () =
         Bfeth.RLP.encode "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur mauris magna, suscipit sed vehicula non, iaculis faucibus tortor. Proin suscipit ultricies malesuada. Duis tortor elit, dictum quis tristique eu, ultrices at risus. Morbi a est imperdiet mi ullamcorper aliquet suscipit nec lorem. Aenean quis leo mollis, vulputate elit varius, consequat enim. Nulla ultrices turpis justo, et posuere urna consectetur nec. Proin non convallis metus. Donec tempor ipsum in mauris congue sollicitudin. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Suspendisse convallis sem vel massa faucibus, eget lacinia lacus tempor. Nulla quis ultricies purus. Proin auctor rhoncus nibh condimentum mollis. Aliquam consequat enim at metus luctus, a eleifend purus egestas. Curabitur at nibh metus. Nam bibendum, neque at auctor tristique, lorem libero aliquet arcu, non interdum tellus lectus sit amet eros. Cras rhoncus, metus ac ornare cursus, dolor justo ultrices metus, at ullamcorper volutpat"
     )
 
-    //fails because of the tuple to list conversion, this doesn't need the fake byte added
-
-
 [<Test>]
 let stringList () =  
     
@@ -129,23 +126,29 @@ let stringListList () =
 [<Test>]
 let genericList () =  
 
-    Assert.AreEqual(
-        //       C7C0  C0C3C0  C0
-        fromHex "C7C0C1C0C3C0C1C0",
-        Bfeth.RLP.encode [ []; [[]]; [ []; [[]] ] ]
-    )
+//    Assert.AreEqual(
+//        fromHex "C7C0C1C0C3C0C1C0",
+//        Bfeth.RLP.encode [ []; [[]]; [ []; [[]] ] ]
+//    )
 
     let list = GenericList()
-    let subList = GenericList()
-
     list.Add 1ul
-    list.Add 0xFFFFFFul
-    subList.Add [4ul;5ul;5ul]
-    list.Add subList
+    list.Add 16777215ul
+    list.Add [[4ul;5ul;5ul]]
     list.Add "abc"
 
-    Assert.AreEqual(
+    Assert.AreEqual(          //--
         fromHex "CE0183FFFFFFC4C304050583616263",
-               //CF0183FFFFFFC304050583616263
+               //CA0183FFFFFFC3C304050583616263
+               //CE0183FFFFFFC4C204050583616263
+               //CF0183FFFFFFC4C304050583616263
+               //CB0183FFFFFFC4C304050583616263
         Bfeth.RLP.encode list
+    )
+
+[<Test>]
+let nullValue () =  
+
+    Assert.AreEqual(
+        fromHex "80", Bfeth.RLP.encode null
     )
