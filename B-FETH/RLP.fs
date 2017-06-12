@@ -20,17 +20,15 @@ module Item =
         | GList of Item list //generic list
 
     // Converts an Item into a byte list [this function is ludicrous - and the name is completely unreasonable]
-    let toBytes item = 
-        let rec loop item (inner:bool) = 
-            match item with
-                | Single s -> stringEncoder.GetBytes s |> List.ofArray
-                // TODO: temp fix: cheating here adding one more byte every time we find a non numeric list in our item and removing one byte
-                // when counting the size of the generic bytes
-                | GList l -> l |> List.map (fun x-> 0x01uy::(loop x true)) |> List.concat |> List.tail
-                // TODO: temp fix: cheating here adding one more byte every time we find a non numeric list in our item
-                | List l -> l |> List.map (fun x-> 0x01uy::(loop x true)) |> List.concat
-                | NList l -> l |> List.map (fun x-> loop x true) |> List.concat
-                in loop item false
+    let rec toBytes = function
+        | Single s -> stringEncoder.GetBytes s |> List.ofArray
+        // TODO: temp fix: cheating here adding one more byte every time we find a non numeric list in our item and removing one byte
+        // when counting the size of the generic bytes
+        | GList l -> l |> List.map (fun x-> 0x01uy::toBytes x) |> List.concat |> List.tail
+        // TODO: temp fix: cheating here adding one more byte every time we find a non numeric list in our item
+        | List l -> l |> List.map (fun x-> 0x01uy::toBytes x) |> List.concat
+        | NList l -> l |> List.map (fun x-> toBytes x) |> List.concat
+
 
     let removeLeadingZeroes (list:byte array) = 
         let list = List.ofArray list in
