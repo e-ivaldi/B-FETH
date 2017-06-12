@@ -11,14 +11,28 @@ module Item =
 
     let stringEncoder = Encoding.GetEncoding "iso-8859-1"
 
-    type Item =             
-        | Single of string          
-        | List of Item list
+    type GenericList = System.Collections.Generic.List<obj>
 
-    // Converts an Item into a byte list
-    let rec toBytes = function
-        | Single s -> stringEncoder.GetBytes s |> List.ofArray
-        | List array -> array |> List.map toBytes |> List.concat
+    type Item =             
+        | Single of string  // String
+        | List of Item list // stringy list
+        | NList of Item list //numeric list
+        | GList of Item list //generic list
+
+    // Converts an Item into a byte list [this function is ludicrous - and the name is completely unreasonable]
+    let toBytes = function
+        |  Single s -> stringEncoder.GetBytes s |> List.ofArray
+        | _ -> failwith "Not supported"
+
+    let countBytes item = 
+        let rec loop = function
+            | Single s -> toBytes (Single s)
+            | NList l -> l |> List.map (fun x-> loop x) |> List.concat 
+            // add 1 more byte for every internal list
+            | List l -> l |> List.map (fun x-> 0x01uy::loop x) |> List.concat 
+            // add 1 more byte for every internal list and remove 1 at the end of the computation
+            | GList l -> l |> List.map (fun x-> 0x01uy::loop x) |> List.concat |> List.tail
+            in List.length (loop item)
 
     let removeLeadingZeroes (list:byte array) = 
         let list = List.ofArray list in
@@ -47,20 +61,24 @@ module Item =
     
     // Convert a generic object into an Item
     let rec ofObject (o:obj) = 
-        match o with           
-            | :? int32 as i -> i |> IntNormalizer.toByteArray |> stringEncoder.GetString |> Single
-            | :? bool as b -> if b then [|0x01uy|] |> stringEncoder.GetString |> Single else Single ""
+        match o with 
+            | :? bool as b -> if b then "\x01" |> Single else Single ""
             | :? Item as i -> i
             | :? string as s -> s |> Single
             | :? byte as b -> [|b|] |> stringEncoder.GetString |> Single
             | :? bigint as i -> i |> IntNormalizer.toByteArray |> stringEncoder.GetString |> Single
             | :? uint32 as i -> i |> IntNormalizer.toByteArray |> stringEncoder.GetString |> Single
             | :? uint64 as i -> i |> IntNormalizer.toByteArray |> stringEncoder.GetString |> Single
+            | :? (bigint list) as l -> l |> List.map IntNormalizer.toByteArray |> Array.concat |> Seq.toList |> List.map ofObject |> NList
+            | :? (uint32 list) as l -> l |> List.map IntNormalizer.toByteArray |> Array.concat |> Seq.toList |> List.map ofObject |> NList
+            | :? (uint64 list) as l -> l |> List.map IntNormalizer.toByteArray |> Array.concat |> Seq.toList |> List.map ofObject |> NList
             | :? (byte list) as l -> l |> List.toArray |> stringEncoder.GetString |> Single
-            | :? IEnumerable as en -> en |> Seq.cast<_> |> Seq.toList |> List.map ofObject |> Seq.toList |> List  
-            | x -> if Microsoft.FSharp.Reflection.FSharpType.IsTuple(x.GetType()) 
-                    then ofObject (Microsoft.FSharp.Reflection.FSharpValue.GetTupleFields x)
-                    else failwith ("Unsupported type: " +  (sprintf "%A" (o.GetType())))
+            | :? GenericList as gl -> gl |> Seq.cast<_> |> Seq.toList |> List.map ofObject |> Seq.toList |> GList  
+            | :? IEnumerable as en -> en |> Seq.cast<_> |> Seq.toList |> List.map ofObject |> Seq.toList |> List            
+            | x -> if o = null then Single ""
+                   else if Microsoft.FSharp.Reflection.FSharpType.IsTuple(x.GetType()) 
+                   then ofObject (Microsoft.FSharp.Reflection.FSharpValue.GetTupleFields x)          
+                   else failwith ("Unsupported type: " +  (sprintf "%A" (o.GetType())))
                      
 module RLP =
     
@@ -81,30 +99,29 @@ module RLP =
         let bytes = byte(strLen/8) in
         let remainder = if strLen % 8 > 0 then 0x01uy else 0x0uy in bytes + remainder
 
-    let rec encode (o:obj) = 
-        let item = ofObject o in     
-        let b = toBytes item in 
-        let length = List.length b in
-        let lenghtInByte = byte length in
+
+    let rec encodez (o:obj) = 
+        let item = ofObject o in  
+        let length = countBytes item in  
+        let lenghtInByte = byte length in  
         let lenghtInByteArray = IntNormalizer.toByteArray length |> Array.toList in
         let lenghtOfLenghtBinaryFormInByte = getNumberOfBytesComposingStringBinaryRepresentation length in
         match item with 
             | Single _ -> 
+                let itemBytes = toBytes item in             
                 match length with
                     | 0 -> [0x80uy]
-                    | 1 when List.head b <= 0x7Fuy -> [List.head b] 
-                    | n when n < 56 -> (0x80uy + lenghtInByte) :: b
-                    | x -> (0xB7uy + lenghtOfLenghtBinaryFormInByte) :: (lenghtInByteArray @ b)
-            | List i ->  
+                    | 1 when List.head itemBytes <= 0x7Fuy -> [List.head itemBytes] 
+                    | n when n < 56 -> (0x80uy + lenghtInByte) :: itemBytes
+                    | x -> (0xB7uy + lenghtOfLenghtBinaryFormInByte) :: (lenghtInByteArray @ itemBytes)
+            | GList i | NList i | List i ->    
                 match i with
-                    | [] -> [0x80uy]
-                    | [x] -> encode x
-                    | h::t as list -> 
-                        let serializedList =  list  |> List.map encode |> List.concat in 
+                    | [] -> [0xC0uy]
+                    | [x] -> [ 0xC0uy + lenghtInByte ] @ encodez x
+                    | h::t as list ->  
+                        let serializedList = list  |> List.map encodez |> List.concat in 
                         match length with
                             | n when n < 56  -> [ 0xC0uy + lenghtInByte ] @ serializedList
                             | _ -> (0xF7uy + lenghtOfLenghtBinaryFormInByte) :: (lenghtInByteArray @ serializedList)
 
-
-    let encodeAndPrint (o:obj) = o |> encode |> List.fold (fun acc x-> acc + sprintf "%02X" x) ""
-   
+    let rec encode (o:obj) = let encoded = encodez o in let s = List.fold (fun acc x-> acc + sprintf "%02X" x) "" encoded in printfn "%s" s; encoded

@@ -17,21 +17,24 @@ let fromHex s =
   |> List.ofSeq
 
 [<Test>]
+let boolean () = 
 
-let runTests () = 
     Assert.AreEqual( fromHex "01", Bfeth.RLP.encode true)
     Assert.AreEqual( fromHex "80", Bfeth.RLP.encode false)
 
+[<Test>]
+let integer () = 
+
     Assert.AreEqual( fromHex "80", Bfeth.RLP.encode 0ul)
     Assert.AreEqual( fromHex "7F", Bfeth.RLP.encode 127ul)
-    Assert.AreEqual( fromHex "8180", Bfeth.RLP.encode  128ul)
-    Assert.AreEqual( fromHex "820100", Bfeth.RLP.encode  256ul)
-    Assert.AreEqual( fromHex "820400", Bfeth.RLP.encode  1024ul)
-    Assert.AreEqual( fromHex "83FFFFFF", Bfeth.RLP.encode  0xFFFFFFul)
-    Assert.AreEqual( fromHex "84FFFFFFFF", Bfeth.RLP.encode  0xFFFFFFFFul)
-    Assert.AreEqual( fromHex "84FFFFFFFF", Bfeth.RLP.encode  0xFFFFFFFFUL)
-    Assert.AreEqual( fromHex "85FFFFFFFFFF", Bfeth.RLP.encode  0xFFFFFFFFFFUL)
-    Assert.AreEqual( fromHex "86FFFFFFFFFFFF", Bfeth.RLP.encode  0xFFFFFFFFFFFFUL)
+    Assert.AreEqual( fromHex "8180", Bfeth.RLP.encode 128ul)
+    Assert.AreEqual( fromHex "820100", Bfeth.RLP.encode 256ul)
+    Assert.AreEqual( fromHex "820400", Bfeth.RLP.encode 1024ul)
+    Assert.AreEqual( fromHex "83FFFFFF", Bfeth.RLP.encode 0xFFFFFFul)
+    Assert.AreEqual( fromHex "84FFFFFFFF", Bfeth.RLP.encode 0xFFFFFFFFul)
+    Assert.AreEqual( fromHex "84FFFFFFFF", Bfeth.RLP.encode 0xFFFFFFFFUL)
+    Assert.AreEqual( fromHex "85FFFFFFFFFF", Bfeth.RLP.encode 0xFFFFFFFFFFUL)
+    Assert.AreEqual( fromHex "86FFFFFFFFFFFF", Bfeth.RLP.encode 0xFFFFFFFFFFFFUL)
     Assert.AreEqual( fromHex "87FFFFFFFFFFFFFF", Bfeth.RLP.encode 0xFFFFFFFFFFFFFFUL)
     Assert.AreEqual( fromHex "88FFFFFFFFFFFFFFFF", Bfeth.RLP.encode 0xFFFFFFFFFFFFFFFFUL)
 
@@ -46,6 +49,7 @@ let runTests () =
     Assert.AreEqual( fromHex "85FFFFFFFFFF", Bfeth.RLP.encode  1099511627775I)
     Assert.AreEqual( fromHex "86FFFFFFFFFFFF", Bfeth.RLP.encode 281474976710655I)
     Assert.AreEqual( fromHex "87FFFFFFFFFFFFFF", Bfeth.RLP.encode 72057594037927935I )
+
     Assert.AreEqual( 
         fromHex "8F102030405060708090A0B0C0D0E0F2", 
         Bfeth.RLP.encode (BigInteger.Parse("102030405060708090A0B0C0D0E0F2", Globalization.NumberStyles.AllowHexSpecifier)) 
@@ -58,12 +62,24 @@ let runTests () =
         fromHex "A1010000000000000000000000000000000000000000000000000000000000000000", 
         Bfeth.RLP.encode (BigInteger.Parse("010000000000000000000000000000000000000000000000000000000000000000", Globalization.NumberStyles.AllowHexSpecifier)) 
     )
-       
-    Assert.AreEqual( fromHex "80", Bfeth.RLP.encode [])
+ 
+[<Test>]
+let byteList () =  
+     
+    let emptyByteList:(byte list) = []
+    Assert.AreEqual( fromHex "80", Bfeth.RLP.encode emptyByteList)
     Assert.AreEqual( fromHex "7E", Bfeth.RLP.encode [0x7Euy])
     Assert.AreEqual( fromHex "7F", Bfeth.RLP.encode [0x7Fuy])
     Assert.AreEqual( fromHex "8180", Bfeth.RLP.encode [0x80uy])
     Assert.AreEqual( fromHex "83010203", Bfeth.RLP.encode [1uy;2uy;3uy])
+
+[<Test>]
+let integerList () =  
+
+    Assert.AreEqual( fromHex "C3010203", Bfeth.RLP.encode [1ul; 2ul; 3ul])
+
+[<Test>]
+let string () =  
 
     Assert.AreEqual( fromHex "80", Bfeth.RLP.encode "")
     Assert.AreEqual( fromHex "7E", Bfeth.RLP.encode "\x7E")
@@ -84,19 +100,51 @@ let runTests () =
         Bfeth.RLP.encode "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur mauris magna, suscipit sed vehicula non, iaculis faucibus tortor. Proin suscipit ultricies malesuada. Duis tortor elit, dictum quis tristique eu, ultrices at risus. Morbi a est imperdiet mi ullamcorper aliquet suscipit nec lorem. Aenean quis leo mollis, vulputate elit varius, consequat enim. Nulla ultrices turpis justo, et posuere urna consectetur nec. Proin non convallis metus. Donec tempor ipsum in mauris congue sollicitudin. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Suspendisse convallis sem vel massa faucibus, eget lacinia lacus tempor. Nulla quis ultricies purus. Proin auctor rhoncus nibh condimentum mollis. Aliquam consequat enim at metus luctus, a eleifend purus egestas. Curabitur at nibh metus. Nam bibendum, neque at auctor tristique, lorem libero aliquet arcu, non interdum tellus lectus sit amet eros. Cras rhoncus, metus ac ornare cursus, dolor justo ultrices metus, at ullamcorper volutpat"
     )
 
-    Assert.AreEqual( fromHex "C3010203", Bfeth.RLP.encode [1, 2, 3])
+[<Test>]
+let stringList () =  
     
-//    Assert.AreEqual(
-//        fromHex "F83C836161618362626283636363836464648365656583666666836767678368686883696969836A6A6A836B6B6B836C6C6C836D6D6D836E6E6E836F6F6F",
-//        Bfeth.RLP.encode ["aaa"; "bbb"; "ccc"; "ddd"; "eee"; "fff"; "ggg"; "hhh"; "iii"; "jjj"; "kkk"; "lll"; "mmm"; "nnn"; "ooo"]
-//    )
-    
-//    Assert.AreEqual(
-//        fromHex "ECCA846b6579318476616c31CA846b6579328476616c32CA846b6579338476616c33CA846b6579348476616c34",
-//        Bfeth.RLP.encode [["key1"; "val1"];["key1"; "val1"];["key1"; "val1"]]    
-//    )
+    Assert.AreEqual(
+        fromHex "F83C836161618362626283636363836464648365656583666666836767678368686883696969836A6A6A836B6B6B836C6C6C836D6D6D836E6E6E836F6F6F",
+        Bfeth.RLP.encode ["aaa"; "bbb"; "ccc"; "ddd"; "eee"; "fff"; "ggg"; "hhh"; "iii"; "jjj"; "kkk"; "lll"; "mmm"; "nnn"; "ooo"]
+    )
+ 
+[<Test>]
+let stringListList () =  
+   
+    Assert.AreEqual(
+        fromHex "F90200CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376CF84617364668471776572847A786376",
+        Bfeth.RLP.encode [["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];
+                          ["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];
+                          ["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];
+                          ["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];
+                          ["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];
+                          ["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];
+                          ["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];
+                          ["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"];["asdf"; "qwer"; "zxcv"]]
+    )
 
-//    Assert.AreEqual(
-//        fromHex "C4C2C0C0C0",
-//        Bfeth.RLP.encode [[[];[]];[]]
-//    )
+[<Test>]
+let genericList () =  
+
+    Assert.AreEqual(
+        fromHex "C7C0C1C0C3C0C1C0",
+        Bfeth.RLP.encode [ []; [[]]; [ []; [[]] ] ]
+    )
+
+    let list = GenericList()
+    list.Add 1ul
+    list.Add 16777215ul
+    list.Add [[4ul;5ul;5ul]]
+    list.Add "abc"
+
+    Assert.AreEqual(          
+        fromHex "CE0183FFFFFFC4C304050583616263",
+        Bfeth.RLP.encode list
+    )
+
+[<Test>]
+let nullValue () =  
+
+    Assert.AreEqual(
+        fromHex "80", Bfeth.RLP.encode null
+    )
